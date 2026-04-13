@@ -23,20 +23,16 @@
     p.sub { color: #888; font-size: 0.95rem; margin-bottom: 36px; }
 
     .drop-zone {
-      width: 100%;
-      max-width: 560px;
-      border: 2px dashed #333;
-      border-radius: 16px;
-      padding: 56px 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: #1a1a1a;
-      position: relative;
+      width: 100%; max-width: 560px;
+      border: 2px dashed #333; border-radius: 16px;
+      padding: 56px 20px; text-align: center;
+      cursor: pointer; transition: all 0.2s;
+      background: #1a1a1a; position: relative;
     }
     .drop-zone:hover, .drop-zone.dragover { border-color: #7c3aed; background: #1e1529; }
     .drop-zone input[type="file"] {
-      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+      position: absolute; inset: 0; opacity: 0;
+      cursor: pointer; width: 100%; height: 100%;
     }
     .drop-icon { font-size: 2.8rem; margin-bottom: 12px; }
     .drop-zone p { color: #aaa; font-size: 0.95rem; }
@@ -68,8 +64,8 @@
     .file-size { font-size: 0.78rem; color: #666; flex-shrink: 0; }
 
     .uploading {
-      padding: 18px;
-      display: flex; align-items: center; gap: 12px; color: #888; font-size: 0.9rem;
+      padding: 18px; display: flex; align-items: center;
+      gap: 12px; color: #888; font-size: 0.9rem;
     }
     .spinner {
       width: 20px; height: 20px;
@@ -85,8 +81,8 @@
     .url-box {
       flex: 1; background: #0f0f0f; border: 1px solid #2e2e2e;
       border-radius: 8px; padding: 8px 12px; font-size: 0.82rem;
-      color: #7c3aed; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      cursor: text; user-select: all;
+      color: #7c3aed; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; cursor: text; user-select: all;
     }
     .copy-btn {
       background: #7c3aed; color: white; border: none; border-radius: 8px;
@@ -111,6 +107,9 @@
     .no-preview { color: #555; font-size: 0.85rem; font-style: italic; }
 
     .error-msg { padding: 14px 18px; color: #f87171; font-size: 0.85rem; }
+    .progress-bar-wrap { padding: 0 18px 14px; }
+    .progress-bar-bg { background: #222; border-radius: 99px; height: 6px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: #7c3aed; border-radius: 99px; transition: width 0.2s; width: 0%; }
 
     footer { margin-top: 60px; color: #333; font-size: 0.78rem; }
   </style>
@@ -132,6 +131,9 @@
   <footer>Drop It — real URLs, instant previews</footer>
 
   <script>
+    // ← Your backend proxy URL
+    const PROXY_URL = 'https://wise-80a8acc1.base44.app/functions/uploadProxy';
+
     const dropZone  = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const results   = document.getElementById('results');
@@ -153,9 +155,10 @@
     }
 
     function uploadFile(file) {
-      // Create card with spinner
+      const cardId = 'card-' + Date.now() + Math.random().toString(36).slice(2);
       const card = document.createElement('div');
       card.className = 'card';
+      card.id = cardId;
       card.innerHTML = `
         <div class="card-header">
           <span class="file-name" title="${file.name}">${file.name}</span>
@@ -163,41 +166,49 @@
         </div>
         <div class="uploading">
           <div class="spinner"></div>
-          <span>Uploading and generating live URL…</span>
+          <span>Uploading…</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="pb-${cardId}"></div></div>
         </div>
       `;
       results.prepend(card);
 
-      // Upload to 0x0.st — a real no-signup file host
+      // Use XMLHttpRequest for upload progress
+      const xhr = new XMLHttpRequest();
       const formData = new FormData();
       formData.append('file', file);
 
-      fetch('https://0x0.st', { method: 'POST', body: formData })
-        .then(r => {
-          if (!r.ok) throw new Error('Upload failed: ' + r.status);
-          return r.text();
-        })
-        .then(url => {
-          url = url.trim();
-          showResult(card, file, url);
-        })
-        .catch(err => {
-          // Fallback: try file.io
-          const fd2 = new FormData();
-          fd2.append('file', file);
-          return fetch('https://file.io/?expires=1d', { method: 'POST', body: fd2 })
-            .then(r => r.json())
-            .then(data => {
-              if (data.success && data.link) {
-                showResult(card, file, data.link);
-              } else {
-                throw new Error('file.io failed');
-              }
-            });
-        })
-        .catch(err => {
-          card.querySelector('.uploading').outerHTML = `<div class="error-msg">❌ Upload failed. Try a smaller file or check your connection.</div>`;
-        });
+      xhr.upload.addEventListener('progress', e => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          const pb = document.getElementById('pb-' + cardId);
+          if (pb) pb.style.width = pct + '%';
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        const currentCard = document.getElementById(cardId);
+        if (!currentCard) return;
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data.url) {
+            showResult(currentCard, file, data.url);
+          } else {
+            showError(currentCard, data.error || 'Upload failed');
+          }
+        } catch {
+          showError(currentCard, 'Unexpected response from server');
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        const currentCard = document.getElementById(cardId);
+        if (currentCard) showError(currentCard, 'Network error — check your connection');
+      });
+
+      xhr.open('POST', PROXY_URL);
+      xhr.send(formData);
     }
 
     function showResult(card, file, url) {
@@ -205,7 +216,7 @@
       let previewHTML = '';
 
       if (type.startsWith('image/')) {
-        previewHTML = `<img src="${url}" alt="${file.name}" crossorigin="anonymous" />`;
+        previewHTML = `<img src="${url}" alt="${file.name}" />`;
       } else if (type.startsWith('video/')) {
         previewHTML = `<video controls src="${url}"></video>`;
       } else if (type.startsWith('audio/')) {
@@ -214,8 +225,13 @@
         previewHTML = `<p class="no-preview">File uploaded — open the URL to view it.</p>`;
       }
 
-      const uploading = card.querySelector('.uploading');
-      uploading.outerHTML = `
+      // Remove spinner + progress
+      card.querySelector('.uploading').remove();
+      card.querySelector('.progress-bar-wrap').remove();
+
+      // Insert URL row + preview
+      const urlRow = document.createElement('div');
+      urlRow.innerHTML = `
         <div class="url-row">
           <div class="url-box" title="${url}">${url}</div>
           <button class="copy-btn" onclick="copyURL(this, '${url}')">Copy</button>
@@ -226,6 +242,13 @@
           ${previewHTML}
         </div>
       `;
+      card.appendChild(urlRow);
+    }
+
+    function showError(card, msg) {
+      card.querySelector('.uploading').outerHTML = `<div class="error-msg">❌ ${msg}</div>`;
+      const pb = card.querySelector('.progress-bar-wrap');
+      if (pb) pb.remove();
     }
 
     function copyURL(btn, url) {
