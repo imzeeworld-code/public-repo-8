@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Drop It</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #0f0f0f;
+      color: #f0f0f0;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 6px;
+    }
+
+    h1 span { color: #7c3aed; }
+
+    p.sub {
+      color: #888;
+      font-size: 0.95rem;
+      margin-bottom: 36px;
+    }
+
+    .drop-zone {
+      width: 100%;
+      max-width: 560px;
+      border: 2px dashed #333;
+      border-radius: 16px;
+      padding: 56px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #1a1a1a;
+      position: relative;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #7c3aed;
+      background: #1e1529;
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon {
+      font-size: 2.8rem;
+      margin-bottom: 12px;
+    }
+
+    .drop-zone p {
+      color: #aaa;
+      font-size: 0.95rem;
+    }
+
+    .drop-zone strong { color: #fff; }
+
+    /* Results */
+    #results {
+      width: 100%;
+      max-width: 560px;
+      margin-top: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid #2a2a2a;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: #212121;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .file-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e0e0e0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 260px;
+    }
+
+    .file-size {
+      font-size: 0.78rem;
+      color: #666;
+      flex-shrink: 0;
+    }
+
+    .url-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      background: #161616;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .url-box {
+      flex: 1;
+      background: #0f0f0f;
+      border: 1px solid #2e2e2e;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      color: #7c3aed;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      background: #7c3aed;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    .copy-btn:hover { background: #6d28d9; }
+    .copy-btn.copied { background: #16a34a; }
+
+    .preview-area {
+      padding: 16px 18px;
+    }
+
+    .preview-area p {
+      font-size: 0.78rem;
+      color: #555;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Image preview */
+    .preview-area img {
+      max-width: 100%;
+      max-height: 280px;
+      border-radius: 8px;
+      object-fit: contain;
+      background: #111;
+    }
+
+    /* HTML preview iframe */
+    .preview-area iframe {
+      width: 100%;
+      height: 280px;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      background: white;
+    }
+
+    /* Text preview */
+    .preview-area pre {
+      background: #0f0f0f;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.78rem;
+      color: #aaa;
+      overflow: auto;
+      max-height: 200px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* PDF */
+    .preview-area .pdf-preview {
+      width: 100%;
+      height: 300px;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+    }
+
+    /* Video / Audio */
+    .preview-area video,
+    .preview-area audio {
+      width: 100%;
+      border-radius: 8px;
+      margin-top: 4px;
+    }
+
+    .no-preview {
+      color: #555;
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
+    footer {
+      margin-top: 60px;
+      color: #333;
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Drop <span>It</span></h1>
+  <p class="sub">Upload any file — get an instant live URL + preview</p>
+
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" multiple />
+    <div class="drop-icon">📂</div>
+    <p><strong>Click to upload</strong> or drag & drop</p>
+    <p>Any file type — images, HTML, PDFs, videos, code…</p>
+  </div>
+
+  <div id="results"></div>
+
+  <footer>Drop It — simple file hosting, live URLs</footer>
+
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const results  = document.getElementById('results');
+
+    // Drag events
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+    function handleFiles(files) {
+      [...files].forEach(processFile);
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function processFile(file) {
+      const objectURL = URL.createObjectURL(file);
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      // Header
+      card.innerHTML = `
+        <div class="card-header">
+          <span class="file-name" title="${file.name}">${file.name}</span>
+          <span class="file-size">${formatSize(file.size)}</span>
+        </div>
+        <div class="url-row">
+          <div class="url-box" id="url-${sanitize(file.name)}">${objectURL}</div>
+          <button class="copy-btn" onclick="copyURL(this, '${objectURL}')">Copy</button>
+        </div>
+        <div class="preview-area">
+          <p>Preview</p>
+          ${buildPreview(file, objectURL)}
+        </div>
+      `;
+
+      results.prepend(card);
+    }
+
+    function sanitize(name) {
+      return name.replace(/[^a-zA-Z0-9]/g, '_');
+    }
+
+    function buildPreview(file, url) {
+      const type = file.type;
+
+      if (type.startsWith('image/')) {
+        return `<img src="${url}" alt="${file.name}" />`;
+      }
+
+      if (type === 'text/html' || file.name.endsWith('.html') || file.name.endsWith('.htm')) {
+        return `<iframe src="${url}" sandbox="allow-scripts allow-same-origin"></iframe>`;
+      }
+
+      if (type === 'application/pdf') {
+        return `<iframe class="pdf-preview" src="${url}"></iframe>`;
+      }
+
+      if (type.startsWith('video/')) {
+        return `<video controls src="${url}"></video>`;
+      }
+
+      if (type.startsWith('audio/')) {
+        return `<audio controls src="${url}"></audio>`;
+      }
+
+      if (type.startsWith('text/') || isCodeFile(file.name)) {
+        return `<pre id="text-${sanitize(file.name)}">Loading…</pre>`;
+      }
+
+      return `<p class="no-preview">No preview available for this file type.</p>`;
+    }
+
+    function isCodeFile(name) {
+      return /\.(js|ts|jsx|tsx|css|json|md|xml|csv|py|sh|yaml|yml|txt|env)$/i.test(name);
+    }
+
+    // Read text files for preview
+    document.addEventListener('click', () => {}); // keep alive
+
+    // Handle text preview after card is inserted
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.nodeType !== 1) return;
+          const pre = node.querySelector('pre[id^="text-"]');
+          if (pre) {
+            const input = fileInput.files;
+            // find file by matching sanitized name
+            [...(window._pendingTextFiles || [])].forEach(({file, id}) => {
+              if (pre.id === 'text-' + sanitize(file.name)) {
+                const reader = new FileReader();
+                reader.onload = e => { pre.textContent = e.target.result.slice(0, 3000); };
+                reader.readAsText(file);
+              }
+            });
+          }
+        });
+      });
+    });
+    observer.observe(results, { childList: true, subtree: true });
+
+    window._pendingTextFiles = [];
+
+    const _orig = processFile;
+    // Monkey-patch to track text files
+    function processFile(file) {
+      if (file.type.startsWith('text/') || isCodeFile(file.name)) {
+        window._pendingTextFiles.push({ file, id: 'text-' + sanitize(file.name) });
+      }
+      _orig(file);
+    }
+
+    function copyURL(btn, url) {
+      navigator.clipboard.writeText(url).then(() => {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
